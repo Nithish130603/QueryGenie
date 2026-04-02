@@ -21,6 +21,7 @@ from src.llm_engine import generate_sql, get_available_models
 from src.query_executor import QueryExecutor
 from src.utils import csv_to_sqlite
 from src.visualizer import suggest_chart_type, create_chart, render_metric
+from src.example_generator import get_examples
 
 # Load environment variables (API keys)
 load_dotenv()
@@ -54,6 +55,9 @@ if "executor" not in st.session_state:
 
 if "current_db_name" not in st.session_state:
     st.session_state.current_db_name = None
+
+if "example_question" not in st.session_state:
+    st.session_state.example_question = None
 
 
 # ============================================================
@@ -140,6 +144,22 @@ with st.sidebar:
         with st.expander("View full schema", expanded=False):
             st.code(st.session_state.schema_text, language="text")
 
+    # ---- Example Questions ----
+    if st.session_state.schema_text and st.session_state.db_path:
+        st.subheader("💡 Example Questions")
+        extractor = SchemaExtractor(st.session_state.db_path)
+        examples = get_examples(st.session_state.schema_text, extractor)
+
+        for ex in examples:
+            if st.button(
+                f"{ex['question']}",
+                key=f"ex_{ex['question'][:30]}",
+                use_container_width=True,
+                help=ex["category"],
+            ):
+                st.session_state.example_question = ex["question"]
+                st.rerun()
+
 
 # ============================================================
 #  MAIN AREA — Chat Interface
@@ -188,7 +208,12 @@ for entry in st.session_state.chat_history:
             st.error(entry["error"])
 
 # ---- Chat input ----
+# Check if an example question was clicked
 question = st.chat_input("Ask a question about your database...")
+
+if st.session_state.example_question:
+    question = st.session_state.example_question
+    st.session_state.example_question = None
 
 if question:
     # Display user message immediately
