@@ -51,6 +51,9 @@ if "db_path" not in st.session_state:
 if "executor" not in st.session_state:
     st.session_state.executor = None
 
+if "current_db_name" not in st.session_state:
+    st.session_state.current_db_name = None
+
 
 # ============================================================
 #  SIDEBAR — Configuration
@@ -69,14 +72,15 @@ with st.sidebar:
 
     if db_choice == "Demo (Chinook Music Store)":
         db_path = "data/chinook.db"
+        db_name = "chinook_demo"
 
-        # Only re-extract schema if database changed
-        if st.session_state.db_path != db_path:
+        if st.session_state.current_db_name != db_name:
+            st.session_state.current_db_name = db_name
             st.session_state.db_path = db_path
             extractor = SchemaExtractor(db_path)
             st.session_state.schema_text = extractor.format_schema_for_llm()
             st.session_state.executor = QueryExecutor(db_path)
-            st.session_state.chat_history = []  # reset chat for new DB
+            st.session_state.chat_history = []
 
     else:
         uploaded_file = st.file_uploader(
@@ -85,27 +89,38 @@ with st.sidebar:
         )
 
         if uploaded_file is not None:
-            # Save uploaded file to a temp location
-            suffix = os.path.splitext(uploaded_file.name)[1]
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                tmp.write(uploaded_file.getbuffer())
-                tmp_path = tmp.name
+            db_name = f"upload_{uploaded_file.name}"
 
-            # If CSV, convert to SQLite first
-            if suffix == ".csv":
-                db_path = tmp_path.replace(".csv", ".db")
-                table_name = os.path.splitext(uploaded_file.name)[0]
-                table_name = table_name.replace(" ", "_").replace("-", "_")
-                csv_to_sqlite(tmp_path, db_path, table_name)
-            else:
-                db_path = tmp_path
+            # Only re-process if this is a new file
+            if st.session_state.current_db_name != db_name:
+                suffix = os.path.splitext(uploaded_file.name)[1]
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(uploaded_file.getbuffer())
+                    tmp_path = tmp.name
 
-            # Extract schema from uploaded database
-            if st.session_state.db_path != db_path:
+                if suffix == ".csv":
+                    db_path = tmp_path.replace(".csv", ".db")
+                    table_name = os.path.splitext(uploaded_file.name)[0]
+                    table_name = table_name.replace(" ", "_").replace("-", "_")
+                    csv_to_sqlite(tmp_path, db_path, table_name)
+                else:
+                    db_path = tmp_path
+
+                st.session_state.current_db_name = db_name
                 st.session_state.db_path = db_path
                 extractor = SchemaExtractor(db_path)
                 st.session_state.schema_text = extractor.format_schema_for_llm()
                 st.session_state.executor = QueryExecutor(db_path)
+                st.session_state.chat_history = []
+
+                st.success(f"Loaded: {uploaded_file.name}")
+        else:
+            # No file uploaded yet — clear state if we were previously on a file
+            if st.session_state.current_db_name and st.session_state.current_db_name.startswith("upload_"):
+                st.session_state.current_db_name = None
+                st.session_state.schema_text = None
+                st.session_state.db_path = None
+                st.session_state.executor = None
                 st.session_state.chat_history = []
 
     # ---- Model Selection ----

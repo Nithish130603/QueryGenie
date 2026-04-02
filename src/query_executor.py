@@ -133,7 +133,20 @@ class QueryExecutor:
                     rows = rows[: self.row_limit]
 
                 # Step 4: Convert to DataFrame
-                df = pd.DataFrame(rows, columns=columns)
+                # Handle duplicate column names — LLMs sometimes
+                # generate SQL with duplicate aliases. pandas/pyarrow
+                # crashes on duplicate columns, so we rename them.
+                seen = {}
+                unique_columns = []
+                for col in columns:
+                    if col in seen:
+                        seen[col] += 1
+                        unique_columns.append(f"{col}_{seen[col]}")
+                    else:
+                        seen[col] = 0
+                        unique_columns.append(col)
+
+                df = pd.DataFrame(rows, columns=unique_columns)
 
                 return {
                     "success": True,
