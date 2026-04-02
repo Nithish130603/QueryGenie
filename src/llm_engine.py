@@ -331,6 +331,61 @@ def _is_safe_sql(sql: str) -> bool:
 
 
 
+def explain_sql(sql: str, model_key: str = "mistral") -> dict:
+    """
+    Generate a plain English explanation of a SQL query.
+
+    This serves a different purpose than SQL generation — here we're
+    translating FROM SQL TO English (the reverse direction).
+
+    Why a separate function instead of adding to generate_sql?
+        Single responsibility. generate_sql converts questions to SQL.
+        explain_sql converts SQL to explanations. Different prompts,
+        different use cases, different error handling needs.
+
+    Why lazy-loaded (only called on user click)?
+        Not every user wants an explanation. Calling the LLM for every
+        query would double latency and cost. This is an on-demand feature.
+
+    Args:
+        sql: The SQL query to explain
+        model_key: Which model to use
+
+    Returns:
+        dict with success, explanation, and error fields
+    """
+    try:
+        llm = _create_llm(model_key, temperature=0.0)
+
+        messages = [
+            SystemMessage(content="""You are a SQL tutor. Explain the given SQL query in simple,
+clear English that a beginner could understand.
+
+## RULES
+1. Break the query down step by step.
+2. Explain what each clause does (SELECT, FROM, JOIN, WHERE, GROUP BY, ORDER BY, LIMIT).
+3. Describe the final result the query produces.
+4. Use simple language — avoid jargon.
+5. Keep it concise — aim for 3-6 bullet points.
+6. Format your response as a short paragraph followed by bullet points."""),
+            HumanMessage(content=f"Explain this SQL query:\n\n{sql}"),
+        ]
+
+        response = llm.invoke(messages)
+        return {
+            "success": True,
+            "explanation": response.content.strip(),
+            "error": None,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "explanation": None,
+            "error": f"Explanation failed: {str(e)}",
+        }
+
+
 # ---- Quick test ----
 if __name__ == "__main__":
     from src.schema_extractor import SchemaExtractor

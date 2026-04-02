@@ -17,7 +17,7 @@ import tempfile
 from dotenv import load_dotenv
 
 from src.schema_extractor import SchemaExtractor
-from src.llm_engine import generate_sql, get_available_models
+from src.llm_engine import generate_sql, get_available_models, explain_sql
 from src.query_executor import QueryExecutor
 from src.utils import csv_to_sqlite
 from src.visualizer import suggest_chart_type, create_chart, render_metric
@@ -58,6 +58,9 @@ if "current_db_name" not in st.session_state:
 
 if "example_question" not in st.session_state:
     st.session_state.example_question = None
+
+if "explain_index" not in st.session_state:
+    st.session_state.explain_index = None
 
 
 # ============================================================
@@ -204,6 +207,36 @@ for entry in st.session_state.chat_history:
                         "The full result set is larger."
                     )
             st.caption(f"Model: {entry['model']} · Rows: {entry['row_count']}")
+
+            # Query explanation (lazy-loaded with click-to-reveal)
+            if entry.get("sql"):
+                entry_index = st.session_state.chat_history.index(entry)
+
+                if entry.get("explanation"):
+                    st.markdown(f"**🔍 Explanation:**")
+                    st.markdown(entry["explanation"])
+                elif st.session_state.explain_index == entry_index:
+                    with st.spinner("🧠 Generating explanation..."):
+                        result = explain_sql(
+                            entry["sql"],
+                            model_key=entry["model"],
+                        )
+                    if result["success"]:
+                        st.session_state.chat_history[entry_index]["explanation"] = result["explanation"]
+                        st.session_state.explain_index = None
+                        st.rerun()
+                    else:
+                        st.error(result["error"])
+                        st.session_state.explain_index = None
+                else:
+                    def set_explain_hist(idx=entry_index):
+                        st.session_state.explain_index = idx
+
+                    st.button(
+                        "🔍 Explain this SQL",
+                        key=f"explain_{entry_index}",
+                        on_click=set_explain_hist,
+                    )
         else:
             st.error(entry["error"])
 
@@ -262,6 +295,19 @@ if question:
                     f"Model: {selected_model} · Rows: {exec_result['row_count']}"
                 )
 
+                # on_click callback runs BEFORE the rerun,
+                # guaranteeing session state is set
+                current_index = len(st.session_state.chat_history)
+
+                def set_explain(idx=current_index):
+                    st.session_state.explain_index = idx
+
+                st.button(
+                    "🔍 Explain this SQL",
+                    key=f"explain_live_{current_index}",
+                    on_click=set_explain,
+                )
+
                 # Save to history
                 st.session_state.chat_history.append({
                     "question": question,
@@ -272,6 +318,7 @@ if question:
                     "truncated": exec_result["truncated"],
                     "model": selected_model,
                     "error": None,
+                    "explanation": None,
                 })
             else:
                 # SQL execution failed
@@ -288,6 +335,7 @@ if question:
                     "truncated": False,
                     "model": selected_model,
                     "error": exec_result["error"],
+                    "explanation": None,
                 })
         else:
             # LLM generation failed
@@ -302,4 +350,5 @@ if question:
                 "truncated": False,
                 "model": selected_model,
                 "error": llm_result["error"],
+                "explanation": None,
             })
