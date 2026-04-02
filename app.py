@@ -20,6 +20,7 @@ from src.schema_extractor import SchemaExtractor
 from src.llm_engine import generate_sql, get_available_models
 from src.query_executor import QueryExecutor
 from src.utils import csv_to_sqlite
+from src.visualizer import suggest_chart_type, create_chart, render_metric
 
 # Load environment variables (API keys)
 load_dotenv()
@@ -163,7 +164,20 @@ for entry in st.session_state.chat_history:
         if entry["success"]:
             st.code(entry["sql"], language="sql")
             if entry["data"] is not None and not entry["data"].empty:
-                st.dataframe(entry["data"], use_container_width=True)
+                # Auto-visualization
+                suggestion = suggest_chart_type(entry["data"])
+
+                if suggestion["chart_type"] == "metric":
+                    metrics = render_metric(entry["data"], suggestion)
+                    cols = st.columns(len(metrics))
+                    for i, m in enumerate(metrics):
+                        cols[i].metric(label=m["label"], value=m["value"])
+                else:
+                    chart = create_chart(entry["data"], suggestion)
+                    if chart:
+                        st.plotly_chart(chart, use_container_width=True)
+                    st.dataframe(entry["data"], use_container_width=True)
+
                 if entry["truncated"]:
                     st.warning(
                         f"Results truncated to {len(entry['data'])} rows. "
@@ -200,8 +214,19 @@ if question:
                 exec_result = st.session_state.executor.execute(llm_result["sql"])
 
             if exec_result["success"]:
-                # Show results
-                st.dataframe(exec_result["data"], use_container_width=True)
+                # Auto-visualization
+                suggestion = suggest_chart_type(exec_result["data"])
+
+                if suggestion["chart_type"] == "metric":
+                    metrics = render_metric(exec_result["data"], suggestion)
+                    cols = st.columns(len(metrics))
+                    for i, m in enumerate(metrics):
+                        cols[i].metric(label=m["label"], value=m["value"])
+                else:
+                    chart = create_chart(exec_result["data"], suggestion)
+                    if chart:
+                        st.plotly_chart(chart, use_container_width=True)
+                    st.dataframe(exec_result["data"], use_container_width=True)
 
                 if exec_result["truncated"]:
                     st.warning(
