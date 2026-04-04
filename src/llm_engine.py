@@ -231,7 +231,7 @@ def generate_sql(
                 "sql": None,
                 "model": model_key,
                 "success": False,
-                "error": "This question cannot be answered with the available database schema.",
+                "error": "🤔 I couldn't map this question to the database. Try asking something about the tables and columns shown in the schema viewer.",
             }
 
         if not _is_safe_sql(cleaned_sql):
@@ -239,7 +239,7 @@ def generate_sql(
                 "sql": None,
                 "model": model_key,
                 "success": False,
-                "error": "Generated query was blocked for safety reasons (non-SELECT operation detected).",
+                "error": "🛡️ This question generated a non-SELECT query which was blocked for safety. I can only read data, not modify it. Try rephrasing as a question about the data.",
             }
 
         return {

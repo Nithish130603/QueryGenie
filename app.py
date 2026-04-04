@@ -14,6 +14,7 @@ Layout:
 import streamlit as st
 import os
 import tempfile
+import time
 from dotenv import load_dotenv
 
 from src.schema_extractor import SchemaExtractor
@@ -68,6 +69,12 @@ if "explain_index" not in st.session_state:
 # ============================================================
 
 with st.sidebar:
+    st.markdown(
+        "**QueryGenie** converts natural language to SQL using LLMs. "
+        "Supports multiple AI models and auto-visualizes results."
+    )
+    st.divider()
+
     st.title("⚙️ Configuration")
 
     # ---- Database Selection ----
@@ -171,6 +178,17 @@ with st.sidebar:
 st.title("🧞 QueryGenie")
 st.caption("Ask questions about your database in plain English. I'll write and run the SQL for you.")
 
+# Welcome message for empty chat
+if not st.session_state.chat_history:
+    st.markdown("""
+    **Welcome!** Here's how to get started:
+    1. **Select a database** from the sidebar — try the Chinook demo or upload your own CSV
+    2. **Ask a question** in plain English — e.g., *"What are the top 5 genres by number of tracks?"*
+    3. **Get instant results** — SQL, data table, and auto-generated charts
+
+    💡 Click any **Example Question** in the sidebar to try it out!
+    """)
+
 # ---- Check if database is loaded ----
 if st.session_state.schema_text is None:
     st.info("👈 Select or upload a database from the sidebar to get started.")
@@ -255,6 +273,7 @@ if question:
 
     # Generate and execute
     with st.chat_message("assistant"):
+        start_time = time.time()
         with st.spinner("Generating SQL..."):
             # Step 1: Generate SQL
             llm_result = generate_sql(
@@ -291,8 +310,9 @@ if question:
                         f"Results truncated to {exec_result['row_count']} rows. "
                         "The full result set is larger."
                     )
+                elapsed = round(time.time() - start_time, 1)
                 st.caption(
-                    f"Model: {selected_model} · Rows: {exec_result['row_count']}"
+                    f"Model: {selected_model} · Rows: {exec_result['row_count']} · Time: {elapsed}s"
                 )
 
                 # on_click callback runs BEFORE the rerun,
