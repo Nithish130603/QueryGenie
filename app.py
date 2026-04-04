@@ -11,11 +11,15 @@ Layout:
     Main area: Chat-style Q&A with SQL and results display
 """
 
+import logging
 import streamlit as st
 import os
 import tempfile
 import time
 from dotenv import load_dotenv
+
+logging.basicConfig(level=logging.INFO)
+logging.info("QueryGenie starting up...")
 
 from src.schema_extractor import SchemaExtractor
 from src.llm_engine import generate_sql, get_available_models, explain_sql

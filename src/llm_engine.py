@@ -13,7 +13,10 @@ Design decisions:
 """
 
 import re
-from langchain_ollama import ChatOllama
+try:
+    from langchain_ollama import ChatOllama
+except ImportError:
+    ChatOllama = None
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
@@ -26,7 +29,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 # Adding a new model = adding one entry here. Zero code changes elsewhere.
 
 MODEL_REGISTRY = {
-    # API Models (require API keys)
+    # API Models
     "gpt-4o-mini": {
         "provider": ChatOpenAI,
         "model_name": "gpt-4o-mini",
@@ -62,18 +65,20 @@ MODEL_REGISTRY = {
         "model_name": "mixtral-8x7b-32768",
         "description": "Mixtral 8x7B on Groq. Fast, free, great for SQL.",
     },
-    # Local Models (require Ollama running locally)
-    "mistral": {
+}
+
+# Only add local models if Ollama is available
+if ChatOllama is not None:
+    MODEL_REGISTRY["mistral"] = {
         "provider": ChatOllama,
         "model_name": "mistral",
         "description": "Local model. Free, private, no API key needed.",
-    },
-    "llama3": {
+    }
+    MODEL_REGISTRY["llama3"] = {
         "provider": ChatOllama,
         "model_name": "llama3",
         "description": "Meta's local model. Free, private, good accuracy.",
-    },
-}
+    }
 
 
 def _build_system_prompt(schema_text: str) -> str:
