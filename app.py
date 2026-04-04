@@ -344,7 +344,12 @@ if question:
                 # SQL execution failed
                 st.error(f"Query failed: {exec_result['error']}")
                 st.code(llm_result["sql"], language="sql")
-                st.caption("The generated SQL had an error. Try rephrasing your question.")
+                st.info(
+                    "💡 **Tips to fix this:**\n"
+                    "- Check the schema viewer in the sidebar to see available columns\n"
+                    "- Try simplifying your question\n"
+                    "- Ask about data that exists in the database"
+                )
 
                 st.session_state.chat_history.append({
                     "question": question,

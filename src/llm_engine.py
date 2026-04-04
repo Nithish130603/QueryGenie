@@ -96,10 +96,11 @@ def _build_system_prompt(schema_text: str) -> str:
 4. When joining tables, always use the foreign key relationships defined in the schema.
 5. Use aliases for readability when joining multiple tables (e.g., SELECT a.Name FROM Artist a).
 6. If the question is ambiguous, make a reasonable assumption and write the query.
-7. If the question cannot be answered with the given schema, respond with exactly: CANNOT_ANSWER
-8. Always end your SQL with a semicolon.
-9. For "top N" questions, always use LIMIT.
-10. Prefer explicit JOIN syntax over implicit joins (WHERE-based).
+7. If the user asks multiple questions, combine them into a SINGLE query if possible. If not, answer only the first question.
+8. If the question cannot be answered with the given schema, respond with exactly: CANNOT_ANSWER
+9. Always end your SQL with a semicolon.
+10. For "top N" questions, always use LIMIT.
+11. Prefer explicit JOIN syntax over implicit joins (WHERE-based).
 
 ## EXAMPLES
 
@@ -263,28 +264,41 @@ def _clean_sql_output(raw: str) -> str:
     Clean the LLM's raw output to extract just the SQL.
 
     Why is this necessary?
-        Even with strict instructions, LLMs sometimes wrap SQL in
-        markdown code blocks (```sql ... ```) or add explanatory text.
-        This function strips all of that reliably.
+        Even with strict instructions, LLMs sometimes:
+        - Wrap SQL in markdown code blocks (```sql ... ```)
+        - Add explanatory text before or after the SQL
+        - Include assumptions or notes after the query
 
-    The cleaning order matters:
-        1. Remove code fences first (most common wrapper)
-        2. Strip whitespace
-        3. Remove trailing semicolons then re-add one
-           (normalizes inconsistent semicolon usage)
+    Cleaning strategy (order matters):
+        1. Remove code fences
+        2. Find the SQL statement (starts with SELECT/WITH)
+        3. Cut everything after the first semicolon
+        4. Normalize semicolons
     """
     # Remove markdown code blocks if present
     cleaned = re.sub(r"```sql\s*", "", raw)
     cleaned = re.sub(r"```\s*", "", cleaned)
-
-    # Strip whitespace
     cleaned = cleaned.strip()
 
-    # Strip "SQL:" prefix some models (e.g. Mistral) add despite instructions
-    cleaned = re.sub(r"^SQL:\s*", "", cleaned, flags=re.IGNORECASE)
+    # If the output contains a SELECT or WITH, extract from there
+    # This handles cases where the LLM adds preamble text
+    upper = cleaned.upper()
+    select_pos = upper.find("SELECT")
+    with_pos = upper.find("WITH")
 
-    # Normalize semicolons — ensure exactly one at the end
-    cleaned = cleaned.rstrip(";").strip() + ";"
+    if select_pos >= 0 and (with_pos < 0 or select_pos < with_pos):
+        cleaned = cleaned[select_pos:]
+    elif with_pos >= 0:
+        cleaned = cleaned[with_pos:]
+
+    # Cut everything after the first semicolon
+    # (removes LLM commentary like "Assumption: ...")
+    semicolon_pos = cleaned.find(";")
+    if semicolon_pos >= 0:
+        cleaned = cleaned[:semicolon_pos]
+
+    # Normalize — ensure exactly one semicolon at the end
+    cleaned = cleaned.strip() + ";"
 
     return cleaned
 
