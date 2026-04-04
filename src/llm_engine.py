@@ -15,6 +15,7 @@ Design decisions:
 import re
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -50,6 +51,16 @@ MODEL_REGISTRY = {
         "provider": ChatGoogleGenerativeAI,
         "model_name": "gemini-1.5-flash",
         "description": "Google's Gemini 1.5 Flash. Separate free tier quota.",
+    },
+    "groq-llama3": {
+        "provider": ChatGroq,
+        "model_name": "llama-3.3-70b-versatile",
+        "description": "Llama 3.3 70B on Groq. Fast, free, accurate.",
+    },
+    "groq-mistral": {
+        "provider": ChatGroq,
+        "model_name": "mixtral-8x7b-32768",
+        "description": "Mixtral 8x7B on Groq. Fast, free, great for SQL.",
     },
     # Local Models (require Ollama running locally)
     "mistral": {

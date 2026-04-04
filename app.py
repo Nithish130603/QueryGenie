@@ -141,11 +141,16 @@ with st.sidebar:
     # ---- Model Selection ----
     st.subheader("🤖 Model")
     available_models = get_available_models()
+    # Default to Groq on cloud, Mistral locally
+    default_model = "groq-llama3" if os.getenv("GROQ_API_KEY") else "mistral"
+    model_keys = list(available_models.keys())
+    default_index = model_keys.index(default_model) if default_model in model_keys else 0
+
     selected_model = st.selectbox(
         "Choose an LLM:",
-        options=list(available_models.keys()),
+        options=model_keys,
         format_func=lambda x: f"{x} — {available_models[x]}",
-        index=list(available_models.keys()).index("mistral"),  # default to local
+        index=default_index,
     )
 
     # ---- Schema Viewer ----
