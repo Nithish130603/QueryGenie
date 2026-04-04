@@ -187,7 +187,6 @@ QueryGenie/
 | Plotly over Matplotlib | Interactive charts with hover/zoom, web-optimized |
 | LangChain as thin abstraction only | Unified model interface without framework lock-in |
 
-See [claude.md](claude.md) for the complete technical documentation with interview-ready explanations for every design choice.
 
 ---
 
