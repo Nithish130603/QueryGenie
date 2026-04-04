@@ -1,3 +1,17 @@
+---
+title: QueryGenie
+emoji: 🧞
+colorFrom: blue
+colorTo: purple
+sdk: streamlit
+sdk_version: "1.45.1"
+app_port: 7860
+app_file: app.py
+pinned: false
+license: mit
+short_description: Natural Language to SQL with auto-visualization
+---
+
 # 🧞 QueryGenie — Talk to Your Database
 
 **Ask questions in plain English. Get SQL, results, and charts instantly.**
