@@ -352,3 +352,48 @@ if question:
                 "error": llm_result["error"],
                 "explanation": None,
             })
+
+# ============================================================
+#  SIDEBAR — Chat Controls (rendered last so chat_history is populated)
+# ============================================================
+
+with st.sidebar:
+    if st.session_state.chat_history:
+        st.divider()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            def clear_chat():
+                st.session_state.chat_history = []
+                st.session_state.explain_index = None
+
+            st.button(
+                "🗑️ Clear",
+                on_click=clear_chat,
+                use_container_width=True,
+            )
+
+        with col2:
+            import csv
+            import io
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["question", "sql", "success", "rows", "model"])
+            for entry in st.session_state.chat_history:
+                writer.writerow([
+                    entry["question"],
+                    entry.get("sql", ""),
+                    entry["success"],
+                    entry["row_count"],
+                    entry["model"],
+                ])
+
+            st.download_button(
+                "📥 Export",
+                data=output.getvalue(),
+                file_name="querygenie_history.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
