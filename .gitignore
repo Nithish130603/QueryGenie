@@ -1,9 +1,17 @@
+# Python
 venv/
-.env
 __pycache__/
 *.pyc
-*.pyo
-.DS_Store
-data/*.db
-data/*.sqlite
+.env
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Project
 claude.md
+
+# OS
+.DS_Store
+Thumbs.db
