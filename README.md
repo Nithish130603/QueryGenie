@@ -1,12 +1,12 @@
 # 🧞 QueryGenie — Talk to Your Database
 
-**Ask questions in plain English. Get SQL, results, and charts instantly.**
+**Ask questions in plain English. Get SQL, results, and insights instantly.**
 
-QueryGenie converts natural language questions into SQL queries using LLMs, executes them against your database, and auto-generates interactive visualizations — all in a clean chat interface.
+QueryGenie converts natural language questions into SQL queries using LLMs, executes them against your database, and displays results with smart formatting — all through a polished chat interface built with Next.js and FastAPI.
 
 ![QueryGenie Hero](assets/hero.png)
 
-> 🔗 **[Try the Live Demo →](https://huggingface.co/spaces/Nithish130603/QueryGenie)** *(coming soon)*
+> 🔗 **[Try the Live Demo →](#)** *(coming soon)*
 
 ---
 
@@ -15,19 +15,21 @@ QueryGenie converts natural language questions into SQL queries using LLMs, exec
 ### Natural Language to SQL
 Type a question in plain English — QueryGenie generates accurate SQL, runs it, and displays the results. No SQL knowledge required.
 
-### Auto-Visualization
-Results are automatically visualized based on their structure — bar charts for categorical data, line charts for time series, and big metric displays for single values. Powered by Plotly for full interactivity (hover, zoom, pan).
+### Smart Result Display
+Single-value results appear as large metric cards. Multi-row results display in clean, sortable tables. Column names are automatically formatted for readability.
 
 ![Metric Display](assets/metric.png)
 
 ### Multi-Model Support
 Switch between cloud APIs and local models with one click:
+
 | Provider | Models | Best For |
 |----------|--------|----------|
-| **Ollama** (local) | Mistral, Llama 3 | Free, private, offline development |
+| **Groq** | Llama 3.3 70B, Mixtral 8x7B | Blazing fast, free, ideal for demos |
 | **OpenAI** | GPT-4o, GPT-4o-mini | Highest accuracy on complex queries |
 | **Anthropic** | Claude Sonnet | Strong SQL generation |
 | **Google** | Gemini 2.5 Flash | Fast, generous free tier |
+| **Ollama** (local) | Mistral, Llama 3 | Free, private, offline development |
 
 ### Upload Any Database
 Works with the built-in Chinook demo database, or upload your own `.sqlite`, `.db`, or `.csv` file. CSV files are automatically converted to queryable SQLite databases.
@@ -35,47 +37,46 @@ Works with the built-in Chinook demo database, or upload your own `.sqlite`, `.d
 ![CSV Upload](assets/csv_upload.png)
 
 ### SQL Explanation
-Click "Explain this SQL" to get a plain English breakdown of any generated query — great for learning SQL or understanding complex JOINs.
+Click "Explain this query" to get a structured, step-by-step breakdown of any generated query — great for learning SQL or understanding complex JOINs.
 
 ![SQL Explanation](assets/explain.png)
 
 ### Smart Example Questions
 Curated examples for known databases, auto-generated examples for uploaded databases. Each example is clickable and runs instantly.
 
+### Schema Viewer
+Expandable schema browser in the sidebar shows all tables and their columns, so you always know what data is available to query.
+
+### Export History
+Download your entire query session (questions + generated SQL) as a CSV file for documentation or sharing.
+
 ---
 
 ## 🏗️ Architecture
 
 ```
-User Question (English)
-        │
-        ▼
-┌─────────────────────┐
-│  Schema Extractor    │ ── SQLAlchemy reflection (database-agnostic)
-└────────┬────────────┘
-         │ schema text
-         ▼
-┌─────────────────────┐
-│  LLM Engine          │ ── Role prompting + few-shot examples + safety rules
-└────────┬────────────┘
-         │ generated SQL
-         ▼
-┌─────────────────────┐
-│  Query Executor      │ ── Whitelist validation + timeout + row limits
-└────────┬────────────┘
-         │ pandas DataFrame
-         ▼
-┌─────────────────────┐
-│  Visualizer          │ ── Heuristic chart selection (bar/line/pie/metric)
-└────────┬────────────┘
-         │ Plotly figure
-         ▼
-┌─────────────────────┐
-│  Streamlit UI        │ ── Chat interface + sidebar config
-└─────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                   FRONTEND (Next.js)                │
+│  Chat UI · Schema Viewer · File Upload · Export     │
+└──────────────────────┬──────────────────────────────┘
+                       │ REST API (axios)
+┌──────────────────────▼──────────────────────────────┐
+│                   BACKEND (FastAPI)                  │
+│                                                      │
+│  ┌─────────────┐  ┌───────────┐  ┌───────────────┐  │
+│  │   Schema     │  │   LLM     │  │    Query      │  │
+│  │  Extractor   │→ │  Engine   │→ │   Executor    │  │
+│  │ (SQLAlchemy) │  │(LangChain)│  │  (SQLite)     │  │
+│  └─────────────┘  └───────────┘  └───────────────┘  │
+│                                                      │
+│  ┌──────────────┐  ┌──────────────────────────────┐  │
+│  │   Example     │  │   Visualizer (chart type     │  │
+│  │  Generator    │  │   detection for frontend)    │  │
+│  └──────────────┘  └──────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
 ```
 
-Each module is independent with a single responsibility. The LLM engine doesn't know about execution; the executor doesn't know about visualization. This makes the system testable, extensible, and easy to reason about.
+Each module is independent with a single responsibility. The LLM engine doesn't know about execution; the executor doesn't know about the frontend. This makes the system testable, extensible, and easy to reason about.
 
 ---
 
@@ -86,24 +87,25 @@ Security is built into every layer (defense-in-depth):
 - **Prompt-level:** System prompt restricts LLM to SELECT-only queries
 - **Code-level:** Whitelist validation rejects anything that isn't SELECT or WITH (CTE)
 - **Keyword blocking:** Word-boundary regex blocks DROP, DELETE, INSERT, UPDATE, ALTER, TRUNCATE, EXEC, GRANT, REVOKE
-- **Row limits:** Results capped at 1,000 rows to prevent browser overload
+- **Row limits:** Results capped at 1,000 rows to prevent overload
 - **Timeout:** 30-second execution limit prevents runaway queries
 - **SQL cleaning:** Strips LLM commentary, code fences, and preamble text from output
-
-Each layer protects independently — the executor validates safety even if called directly, bypassing the LLM engine.
+- **CORS:** API configured with cross-origin protection
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component | Technology | Why |
-|-----------|-----------|-----|
-| Frontend | Streamlit | Purpose-built for data apps, native DataFrame/chart support |
-| LLM Abstraction | LangChain | Unified interface across 4+ providers, minimal footprint |
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Frontend | Next.js + TypeScript + Tailwind | Modern React framework, type safety, utility-first styling |
+| Backend API | FastAPI | Async Python, auto-generated docs, Pydantic validation |
+| LLM Abstraction | LangChain | Unified interface across 5+ providers |
 | Schema Reflection | SQLAlchemy | Database-agnostic, automatic relationship discovery |
 | Database | SQLite | Serverless, zero-config, file-based |
-| Visualization | Plotly | Interactive charts, native Streamlit integration |
-| Data Processing | pandas | Column metadata, type inference, Streamlit/Plotly compatibility |
+| Data Processing | pandas | Column metadata, type inference |
+| Cloud LLM | Groq | Sub-2-second inference, free tier |
+| Local LLM | Ollama | Private, offline, no API key needed |
 
 ---
 
@@ -111,14 +113,13 @@ Each layer protects independently — the executor validates safety even if call
 
 ### Prerequisites
 - Python 3.10+
-- [Ollama](https://ollama.com/download) (for free local models)
+- Node.js 18+
+- [Ollama](https://ollama.com/download) (optional — for free local models)
 
-### Setup
+### Backend Setup
 
 ```bash
-# Clone the repo
-git clone https://github.com/Nithish130603/QueryGenie.git
-cd QueryGenie
+cd backend
 
 # Create virtual environment
 python3 -m venv venv
@@ -127,28 +128,41 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Pull a local model (free, no API key needed)
-ollama pull mistral
-```
-
-### Configure API Keys (optional — for cloud models)
-
-```bash
+# Configure API key
 cp .env.example .env
-# Edit .env with your API keys (OpenAI, Anthropic, or Google)
+# Edit .env — add at minimum: GROQ_API_KEY=your_key_here
+
+# Start the API
+python -m uvicorn api:app --reload --port 8000
 ```
 
-### Run
+API docs available at `http://localhost:8000/docs`
+
+### Frontend Setup
 
 ```bash
-# Make sure Ollama is running (in a separate terminal)
-ollama serve
+cd frontend
 
-# Launch the app
-streamlit run app.py
+# Install dependencies
+npm install
+
+# Start the dev server
+npm run dev
 ```
 
-The app opens at `http://localhost:8501`. Select the Chinook demo database and start asking questions.
+Open `http://localhost:3000` and start asking questions.
+
+### Local Model Setup (Optional)
+
+```bash
+# Install Ollama, then pull a model
+ollama pull mistral
+
+# Start Ollama server
+ollama serve
+```
+
+Select `mistral` from the model dropdown — free, private, no API key needed.
 
 ---
 
@@ -156,21 +170,45 @@ The app opens at `http://localhost:8501`. Select the Chinook demo database and s
 
 ```
 QueryGenie/
-├── app.py                      # Streamlit UI and interaction logic
-├── src/
-│   ├── schema_extractor.py     # Database schema reflection
-│   ├── llm_engine.py           # LLM abstraction + prompt engineering
-│   ├── query_executor.py       # Safe SQL execution
-│   ├── visualizer.py           # Auto-visualization engine
-│   ├── example_generator.py    # Smart example question generation
-│   └── utils.py                # CSV-to-SQLite conversion
-├── data/
-│   └── chinook.db              # Demo database (music store)
-├── assets/                     # Screenshots and diagrams
-├── requirements.txt
-├── .env.example
-└── claude.md                   # Detailed project documentation
+├── backend/
+│   ├── api.py                  # FastAPI endpoints
+│   ├── src/
+│   │   ├── schema_extractor.py # Database schema reflection
+│   │   ├── llm_engine.py       # Multi-provider LLM abstraction
+│   │   ├── query_executor.py   # Safe SQL execution
+│   │   ├── visualizer.py       # Chart type detection
+│   │   ├── example_generator.py# Smart example questions
+│   │   └── utils.py            # CSV-to-SQLite conversion
+│   ├── data/
+│   │   └── chinook.db          # Demo database (music store)
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx            # Main chat interface
+│   │   ├── layout.tsx          # Root layout
+│   │   └── globals.css         # Global styles
+│   ├── package.json
+│   └── tsconfig.json
+├── assets/                     # Screenshots for README
+├── README.md
+└── LICENSE
 ```
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/models` | List available LLM models |
+| GET | `/schema` | Get current database schema |
+| GET | `/examples` | Get example questions for current database |
+| POST | `/query` | Generate SQL from question and execute |
+| POST | `/explain` | Explain a SQL query in plain English |
+| POST | `/upload` | Upload a .sqlite, .db, or .csv file |
+| POST | `/reset` | Reset to demo Chinook database |
 
 ---
 
@@ -178,27 +216,29 @@ QueryGenie/
 
 | Decision | Rationale |
 |----------|-----------|
+| Next.js + FastAPI over Streamlit | Production-grade UI with proper API separation. Streamlit limits customization and deployment flexibility |
 | SQLAlchemy reflection over raw SQL | Database-agnostic — same code for SQLite, PostgreSQL, MySQL |
 | Text schema format over JSON | LLMs generate better SQL with structured text (DIN-SQL research) |
 | Temperature 0.0 | SQL generation is deterministic — precision over creativity |
 | Few-shot prompting (3 examples) | 15-25% accuracy improvement over zero-shot on Text-to-SQL benchmarks |
 | Defense-in-depth security | Each layer validates independently — never trust upstream |
+| Groq for deployment | Sub-2-second inference vs 15-30s with local models. Critical for demo UX |
 | Heuristic examples over LLM-generated | Zero latency, zero cost, deterministic, guaranteed schema-valid |
-| Plotly over Matplotlib | Interactive charts with hover/zoom, web-optimized |
 | LangChain as thin abstraction only | Unified model interface without framework lock-in |
-
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Multi-provider LLM support (OpenAI, Anthropic, Google, Ollama)
-- [x] Auto-visualization (bar, line, pie, metric)
+- [x] Multi-provider LLM support (OpenAI, Anthropic, Google, Groq, Ollama)
+- [x] Full-stack architecture (Next.js + FastAPI)
 - [x] CSV upload with auto-conversion
-- [x] Query explanation
+- [x] Query explanation with structured steps
 - [x] Smart example questions
+- [x] Schema viewer
 - [x] Query history export
 - [ ] Auto-retry with rephrased prompt on SQL failure
+- [ ] Interactive chart visualization (Recharts)
 - [ ] Multi-database support (PostgreSQL, MySQL)
 - [ ] Query caching for repeated questions
 - [ ] Conversational follow-up queries
@@ -210,7 +250,7 @@ QueryGenie/
 **Nithish Kumar Reddy Kundam**
 Master of Data Science and Decisions — UNSW Sydney
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/nithish-kumar-reddy-kundam-a35626279/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://linkedin.com/in/nithish-reddy-a35626279)
 [![GitHub](https://img.shields.io/badge/GitHub-Follow-black?style=flat&logo=github)](https://github.com/Nithish130603)
 
 ---
