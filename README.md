@@ -6,7 +6,7 @@ QueryGenie converts natural language questions into SQL queries using LLMs, exec
 
 ![QueryGenie Hero](assets/hero.png)
 
-> 🔗 **[Try the Live Demo →](#)** *(coming soon)*
+> 🔗 **[Try the Live Demo →](https://querygenie.up.railway.app)**
 
 ---
 
